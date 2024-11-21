@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品价格变动折线图</title>
+    <!-- 引入 ECharts 资源 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <style>
+        /* 确保图表容器全屏 */
+        html, body, #priceChangeChart {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        /* 禁止body滚动条，以确保全屏体验 */
+        body {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="priceChangeChart"></div>
+    <script>
+        function generatePriceData(totalChanges) {
+            const priceData = [];
+            let price = 100;  // 初始价格
+            for (let i = 0; i < totalChanges; i++) {
+                // 模拟价格在一定范围内随机波动
+                price += Math.round((Math.random() - 0.5) * 10);
+                // 模拟变动时间和负责人
+                const date = new Date(2023, 8, 1); // 从2023年9月开始
+                date.setDate(date.getDate() + i);
+                const manager = '负责人' + (i % 5 + 1);
+                priceData.push({ price, time: date.toISOString().split('T')[0], manager });
+            }
+            return priceData;
+        }
+
+        const data = generatePriceData(100);
+
+        // 限制只取最近36次数据
+        const recentData = data.slice(-36);
+
+        // 提取显示用的数据
+        const xData = Array.from({ length: data.length }, (_, i) => i + 1);
+        const yData = data.map(d => d.price);
+
+        // 初始化 ECharts 实例
+        var chart = echarts.init(document.getElementById('priceChangeChart'));
+
+        var option = {
+            // title: {
+            //     text: '商品价格走势'
+            // },
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    var dataIndex = params[0].dataIndex;
+                    var currentData = data[dataIndex]; // 全部数据以便支持区间调整时的数据索引
+                    var changeTimes = xData[dataIndex]; // 通过索引获取横轴上变动次数
+                    return `
+                        价格：￥${currentData.price}.00<br>
+                        变动次数：第${changeTimes}次变动<br>
+                        变动时间：${currentData.time}<br>
+                        采购负责人：${currentData.manager}
+                    `;
+                }
+            },
+            xAxis: {
+                type: 'category',
+                data: xData,
+                name: '变动次数'
+            },
+            yAxis: {
+                type: 'value',
+                name: '价格',
+                scale: true  // 不强制包含零刻度
+            },
+            dataZoom: [
+                {   // 使得横轴可以调整区间
+                    type: 'inside',
+                    start: 64, // 默认展示最近36次
+                    end: 100
+                },
+                {
+                    start: 64,
+                    end: 100
+                }
+            ],
+            series: [
+                {
+                    data: yData,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle', // 展示散点
+                    symbolSize: 8,
+                    sampling: 'lttb', // 使用最新的点采样算法，以提高密集数据的可视化效果
+                    smooth: false // 关闭平滑曲线以便于查看每个点
+                }
+            ]
+        };
+
+        // 使用指定的配置项和数据显示图表
+        chart.setOption(option);
+        // 监听窗口大小变化，动态调整图表大小
+        window.addEventListener('resize', function() {
+            chart.resize();
+        });
+    </script>
+</body>
+</html>
