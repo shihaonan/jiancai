@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品价格变动折线图</title>
+    <!-- 引入 ECharts 资源 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <style>
+        /* 确保图表容器全屏 */
+        html, body, #priceChangeChart {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        /* 禁止body滚动条，以确保全屏体验 */
+        body {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="priceChangeChart"></div>
+    <script>
+        function generatePriceData(totalChanges) {
+            const priceData = [];
+            let price = 100;  // 初始价格
+            for (let i = 0; i < totalChanges; i++) {
+                // 模拟价格在一定范围内随机波动
+                price += Math.round((Math.random() - 0.5) * 10);
+                // 模拟变动时间和负责人
+                const date = new Date(2023, 8, 1); // 从2023年9月开始
+                date.setDate(date.getDate() + i);
+                const manager = '负责人' + (i % 5 + 1);
+                priceData.push({ price, time: date.toISOString().split('T')[0], manager });
+            }
+            return priceData;
+        }
+
+        const nationalData = generatePriceData(100);
+        const qingdaoData = generatePriceData(90);
+        const hefeiData = generatePriceData(100);
+
+        // 限制只取最近36次数据
+        const recentNationalData = nationalData.slice(-36);
+        const recentQingdaoData = qingdaoData.slice(-36);
+        const recentHefeiData = hefeiData.slice(-36);
+
+        // 提取显示用的数据
+        const xData = Array.from({ length: nationalData.length }, (_, i) => i + 1);
+        const nationalYData = nationalData.map(d => d.price);
+        const qingdaoYData = qingdaoData.map(d => d.price);
+        const hefeiYData = hefeiData.map(d => d.price);
+
+        // 初始化 ECharts 实例
+        var chart = echarts.init(document.getElementById('priceChangeChart'));
+
+        var option = {
+            // title: {
+            //     text: '商品价格走势'
+            // },
+            legend: {
+                data: ['全国价', '青岛价', '合肥价'],
+                selectedMode: 'multiple', // 允许单选
+                onClick: function (name) {
+                    // 点击图例时触发
+                    var series = option.series;
+                    for (var i = 0; i < series.length; i++) {
+                        if (series[i].name === name) {
+                            series[i].showAllSymbol =!series[i].showAllSymbol; // 切换显示/隐藏状态
+                            chart.setOption(option);
+                            break;
+                        }
+                    }
+                }   
+            },
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    var dataIndex = params[0].dataIndex;
+                    var currentNationalData = nationalData[dataIndex];
+                    var currentQingdaoData = qingdaoData[dataIndex];
+                    var currentHefeiData = hefeiData[dataIndex];
+                    var changeTimes = xData[dataIndex];
+                    var tooltipContent = '';
+                    if (params[0].seriesName === '全国价') {
+                        tooltipContent = `
+                            全国价格：￥${currentNationalData.price}.00<br>
+                            变动次数：第${changeTimes}次变动<br>
+                            变动时间：${currentNationalData.time}<br>
+                            采购负责人：${currentNationalData.manager}
+                        `;
+                    } else if (params[0].seriesName === '青岛价') {
+                        tooltipContent = `
+                            青岛价格：￥${currentQingdaoData.price}.00<br>
+                            变动次数：第${changeTimes}次变动<br>
+                            变动时间：${currentQingdaoData.time}<br>
+                            采购负责人：${currentQingdaoData.manager}
+                        `;
+                    } else if (params[0].seriesName === '合肥价') {
+                        tooltipContent = `
+                            合肥价格：￥${currentHefeiData.price}.00<br>
+                            变动次数：第${changeTimes}次变动<br>
+                            变动时间：${currentHefeiData.time}<br>
+                            采购负责人：${currentHefeiData.manager}
+                        `;
+                    }
+                    return tooltipContent;
+                }
+            },
+            xAxis: {
+                type: 'category',
+                data: xData,
+                name: '变动次数'
+            },
+            yAxis: {
+                type: 'value',
+                name: '价格',
+                scale: true  // 不强制包含零刻度
+            },
+            dataZoom: [
+                {   // 使得横轴可以调整区间
+                    type: 'inside',
+                    start: 64, // 默认展示最近36次
+                    end: 100
+                },
+                {
+                    start: 64,
+                    end: 100
+                }
+            ],
+            series: [
+                {
+                    data: nationalYData,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle', // 展示散点
+                    symbolSize: 8,
+                    sampling: 'lttb', // 使用最新的点采样算法，以提高密集数据的可视化效果
+                    smooth: false, // 关闭平滑曲线以便于查看每个点
+                    name: '全国价',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function (params) {
+                            var dataIndex = params.dataIndex;
+                            var currentNationalData = nationalData[dataIndex];
+                            var changeTimes = xData[dataIndex];
+                            return `
+                                全国价格：￥${currentNationalData.price}.00<br>
+                                变动次数：第${changeTimes}次变动<br>
+                                变动时间：${currentNationalData.time}<br>
+                                采购负责人：${currentNationalData.manager}
+                            `;
+                        }
+                    }
+                },
+                {
+                    data: qingdaoYData,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    sampling: 'lttb',
+                    smooth: false,
+                    name: '青岛价',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function (params) {
+                            var dataIndex = params.dataIndex;
+                            var currentQingdaoData = qingdaoData[dataIndex];
+                            var changeTimes = xData[dataIndex];
+                            return `
+                                青岛价格：￥${currentQingdaoData.price}.00<br>
+                                变动次数：第${changeTimes}次变动<br>
+                                变动时间：${currentQingdaoData.time}<br>
+                                采购负责人：${currentQingdaoData.manager}
+                            `;
+                        }
+                    }
+                },
+                {
+                    data: hefeiYData,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    sampling: 'lttb',
+                    smooth: false,
+                    name: '合肥价',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function (params) {
+                            var dataIndex = params.dataIndex;
+                            var currentHefeiData = hefeiData[dataIndex];
+                            var changeTimes = xData[dataIndex];
+                            return `
+                                合肥价格：￥${currentHefeiData.price}.00<br>
+                                变动次数：第${changeTimes}次变动<br>
+                                变动时间：${currentHefeiData.time}<br>
+                                采购负责人：${currentHefeiData.manager}
+                            `;
+                        }
+                    }
+                }
+            ]
+        };
+
+        // 使用指定的配置项和数据显示图表
+        chart.setOption(option);
+        // 监听窗口大小变化，动态调整图表大小
+        window.addEventListener('resize', function() {
+            chart.resize();
+        });
+    </script>
+</body>
+</html>
